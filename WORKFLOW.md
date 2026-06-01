@@ -1,277 +1,277 @@
 # Development Workflow
 
-Практическая инструкция по использованию связки **Karpathy-derived skills + OpenSpec** для разработки в этом проекте.
+Practical guide for using **opsx-role-spec** with the OpenSpec workflow.
 
-Для кого: разработчик, работающий в Claude Code CLI. Не для AI — AI читает сами SKILL.md файлы.
+For: developers working in an AI coding assistant (Claude Code, Gemini CLI, OpenAI Codex CLI). Not for the AI — the AI reads the SKILL.md files directly.
 
-## Оглавление
+## Table of Contents
 
-- [Карта инструментов](#карта-инструментов)
-- [Сценарий 1: Новая фича от идеи до архива](#сценарий-1-новая-фича-от-идеи-до-архива)
-- [Сценарий 2: Мелкая правка или багфикс](#сценарий-2-мелкая-правка-или-багфикс)
-- [Сценарий 3: Просто подумать](#сценарий-3-просто-подумать)
-- [Шпаргалка: когда что вызывать](#шпаргалка-когда-что-вызывать)
-- [Антипаттерны](#антипаттерны)
-- [Первый прогон](#первый-прогон)
-
----
-
-## Карта инструментов
-
-| Этап | Команда | Что делает |
-|------|---------|-----------|
-| Подумать перед стартом | `/opsx:explore` или `/openspec-explore` | Думающий партнёр, диаграммы, без записи в код |
-| Формализовать требования | `/analyst <описание>` | Brownfield read `openspec/specs/`, требования как `[ADDED]/[MODIFIED]/[REMOVED]` |
-| Создать change со всеми артефактами | `/opsx:propose <name>` | Генерирует `proposal.md` + `specs/` + `design.md` + `tasks.md` |
-| Уточнить план/декомпозицию | `/planner` | Пишет в `design.md` + `tasks.md` (checkbox-формат) |
-| Реализовать ОДНУ задачу | `/coder` или `/opsx:apply` | Читает scenarios, пишет код, гоняет Verify, тикает чекбокс |
-| Проверить код против контракта | `/reviewer` | Маппит WHEN/THEN → diff, пишет в Decisions log |
-| Проверить поведение | `/tester` | Test cases из WHEN/THEN, Vitest + Playwright |
-| Финализировать | `/opsx:archive <name>` | Двигает дельты в `openspec/specs/`, переносит change в archive |
+- [Tool Map](#tool-map)
+- [Scenario 1: New Feature — Idea to Archive](#scenario-1-new-feature--idea-to-archive)
+- [Scenario 2: Small Fix or Bug](#scenario-2-small-fix-or-bug)
+- [Scenario 3: Just Thinking](#scenario-3-just-thinking)
+- [Quick Reference](#quick-reference)
+- [Antipatterns](#antipatterns)
+- [First Run](#first-run)
 
 ---
 
-## Сценарий 1: Новая фича от идеи до архива
+## Tool Map
 
-Пример сквозной: «добавить отмену заказа со статусом `CANCELLED` и причиной отмены».
+| Stage | Command | What it does |
+|-------|---------|--------------|
+| Think before starting | `/opsx:explore` | Thinking partner — diagrams, questions, no code written |
+| Formalize requirements | `/analyst <description>` | Brownfield read of `openspec/specs/`, outputs `[ADDED]/[MODIFIED]/[REMOVED]` deltas |
+| Create change with all artifacts | `/opsx:propose <name>` | Generates `proposal.md` + `specs/` + `design.md` + `tasks.md` |
+| Refine plan / decompose | `/planner` | Writes to `design.md` + `tasks.md` in checkbox format |
+| Implement ONE task | `/coder` or `/opsx:apply` | Reads scenarios, writes code, runs Verify, ticks checkbox |
+| Review code against contract | `/reviewer` | Maps WHEN/THEN → diff, writes to Decisions log |
+| Verify behavior | `/tester` | Test cases seeded from WHEN/THEN, runs unit + e2e |
+| Finalize | `/opsx:archive <name>` | Promotes deltas into `openspec/specs/`, moves change to archive |
 
-### Шаг 0 — (опционально) Подумать вслух
+---
 
-Если идея сырая:
+## Scenario 1: New Feature — Idea to Archive
+
+End-to-end example: "add order cancellation with status `CANCELLED` and a cancellation reason."
+
+### Step 0 — (optional) Think out loud
+
+If the idea is still fuzzy:
 
 ```
-/opsx:explore хочу добавить отмену заказа, не уверен куда сохранять причину
+/opsx:explore I want to add order cancellation, not sure where to store the reason
 ```
 
-Claude нарисует state-машину статусов, прочитает существующие спеки, задаст вопросы. Никакого кода не напишет.
+The AI will sketch a status state machine, read existing specs, and ask clarifying questions. No code is written.
 
-**Выход**: понимание скоупа в голове, иногда — drafts в существующих `proposal.md` если change уже есть.
+**Output:** scoped understanding in your head; sometimes drafts in an existing `proposal.md` if a change is already active.
 
-### Шаг 1 — Формализовать требования
+### Step 1 — Formalize requirements
 
 ```
-/analyst добавить возможность отмены заказа со статусом CANCELLED и причиной отмены
+/analyst add ability to cancel an order with status CANCELLED and a cancellation reason
 ```
 
-Claude:
-- прочитает `openspec/specs/orders/spec.md` (чтобы не дублировать существующие требования)
-- прочитает `openspec/config.yaml` (workspaceId scoping, RBAC, Zod-валидация)
-- выдаст требования в форме `[ADDED] / [MODIFIED] / [REMOVED]` с цитированием существующих строк спеки
-- завершит хендоффом: «Ready for `/opsx:propose order-cancellation`»
+The AI will:
+- read `openspec/specs/orders/spec.md` to avoid duplicating existing requirements
+- read `openspec/config.yaml` for project conventions (multi-tenancy, RBAC, validation)
+- output requirements as `[ADDED] / [MODIFIED] / [REMOVED]` with citations to existing spec lines
+- hand off: "Ready for `/opsx:propose order-cancellation`"
 
-**Выход**: список требований и имя будущего change.
+**Output:** a requirements list and the name for the upcoming change.
 
-### Шаг 2 — Создать change со всеми артефактами
+### Step 2 — Create the change with all artifacts
 
 ```
 /opsx:propose order-cancellation
 ```
 
-Claude:
-- создаст директорию `openspec/changes/order-cancellation/`
-- сгенерирует `proposal.md`, `specs/orders/spec-delta.md` со сценариями в формате WHEN/THEN, `design.md`, `tasks.md`
-- покажет coverage check (что покрыто сценариями, что нет)
+The AI will:
+- create `openspec/changes/order-cancellation/`
+- generate `proposal.md`, `specs/orders/spec-delta.md` with WHEN/THEN scenarios, `design.md`, `tasks.md`
+- show a coverage check (what is covered by scenarios, what is not)
 
-**Выход**: полный набор артефактов на диске. С этого момента активный change есть, и negative-trigger'ы в скилах работают.
+**Output:** full artifact set on disk. From this point the change is active and negative triggers in the skills engage.
 
-### Шаг 3 — (опционально) Уточнить план
+### Step 3 — (optional) Refine the plan
 
-Если `tasks.md` от `/opsx:propose` нарезан крупно или не хватает Verify-команд:
+If `tasks.md` from `/opsx:propose` is too coarse or missing `Verify:` steps:
 
 ```
-/planner уточни план для order-cancellation
+/planner refine the plan for order-cancellation
 ```
 
-Claude перепишет `tasks.md` в checkbox-формате с `What/Verify/Depends/Scenario` и добавит tradeoffs в `design.md` → `## Decisions log`.
+The AI rewrites `tasks.md` in checkbox format with `What/Verify/Depends/Scenario` and adds tradeoffs to `design.md` → `## Decisions log`.
 
-Обычно этот шаг пропускается — `/opsx:propose` уже даёт рабочий план. Заходи сюда только если декомпозиция неудачная.
+Usually skipped — `/opsx:propose` already produces a workable plan. Come here only if the decomposition is off.
 
-### Шаг 4 — Реализовать задачи
+### Step 4 — Implement tasks
 
-Два варианта:
+Two options:
 
-**Вариант А — автономно через OpenSpec:**
+**Option A — autonomous via OpenSpec:**
 
 ```
 /opsx:apply order-cancellation
 ```
 
-Скил идёт по `tasks.md` сверху вниз: для каждой задачи читает scenarios → реализует → запускает Verify → отмечает `- [x]`. Останавливается на блокерах и непонятных моментах.
+Walks `tasks.md` top to bottom: reads scenarios → implements → runs Verify → checks `- [x]`. Stops on blockers and ambiguities.
 
-**Вариант Б — задача за задачей вручную:**
+**Option B — task by task manually:**
 
 ```
-/coder реализуй задачу 1 из order-cancellation
+/coder implement task 1 from order-cancellation
 ```
 
-После задачи 1 — обязательно review (шаг 5) перед задачей 2. Coder сам не лезет в задачу 2.
+After task 1 — mandatory review (step 5) before task 2. Coder does not start task 2 on its own.
 
-**Когда что выбрать**:
-- `/opsx:apply` — для линейных фич без сюрпризов, простые CRUD'ы
-- `/coder` поштучно — когда каждая задача нетривиальна и хочется review/test после каждой
+**When to use which:**
+- `/opsx:apply` — for linear features without surprises, simple CRUDs
+- `/coder` one by one — when each task is non-trivial and you want review/test after each
 
-### Шаг 5 — Review после каждой задачи
+### Step 5 — Review after each task
 
 ```
 /reviewer
 ```
 
-Claude:
-- прочитает `git diff` против базы change'а
-- прочитает `specs/orders/spec-delta.md` со сценариями
-- построит обязательную таблицу **Contract coverage** (каждый WHEN/THEN → строка кода)
-- запишет non-obvious решения в `design.md` → `## Decisions log` префиксом `[review YYYY-MM-DD]`
-- выдаст `APPROVE` / `REQUEST CHANGES` / `APPROVE WITH COMMENTS`
+The AI will:
+- read `git diff` against the change's base
+- read `specs/orders/spec-delta.md` for scenarios
+- build the mandatory **Contract coverage** table (every WHEN/THEN → line of code)
+- write non-obvious decisions to `design.md` → `## Decisions log` prefixed `[review YYYY-MM-DD]`
+- output `APPROVE` / `REQUEST CHANGES` / `APPROVE WITH COMMENTS`
 
-**Если `REQUEST CHANGES`** — возвращаешься на coder:
+**On `REQUEST CHANGES`** — go back to coder:
 
 ```
 /coder fix R-3, R-5
 ```
 
-Coder адресует именно эти ID, не расширяет скоуп. Потом снова `/reviewer`.
+Coder addresses those IDs only, does not expand scope. Then `/reviewer` again.
 
-**Если `APPROVE`** или `APPROVE WITH COMMENTS` → идёшь на tester.
+**On `APPROVE`** or `APPROVE WITH COMMENTS` → go to tester.
 
-### Шаг 6 — Test после approve
+### Step 6 — Test after approve
 
 ```
 /tester
 ```
 
-Claude:
-- возьмёт WHEN/THEN сценарии из `spec.md` как seed для test cases (одна строка таблицы на сценарий, с ID `S-N`)
-- запустит `npm test` (Vitest) для логики, `npm run test:e2e` (Playwright) для UI flow
-- выдаст таблицу с PASS/FAIL/manual по каждому сценарию
-- `PASS` → «Ready for `/opsx:archive order-cancellation`»
-- `FAIL` → «Fix bug 2 — re-enter coder»
+The AI will:
+- seed test cases from WHEN/THEN scenarios in `spec.md` (one table row per scenario, with ID `S-N`)
+- run unit tests for logic, e2e tests for UI flows
+- output a table with PASS/FAIL/manual per scenario
+- `PASS` → "Ready for `/opsx:archive order-cancellation`"
+- `FAIL` → "Fix bug 2 — re-enter coder"
 
-**Re-entry на FAIL**: `/coder fix bug 2`, затем снова `/tester`. Не возвращайся на analyst — test failures про код, не про требования.
+**On FAIL:** `/coder fix bug 2`, then `/tester` again. Do not go back to analyst — test failures are about code, not requirements.
 
-### Шаг 7 — Архивация
+### Step 7 — Archive
 
-Когда tester дал PASS и все чекбоксы в `tasks.md` стоят `[x]`:
+When tester gives PASS and all checkboxes in `tasks.md` are `[x]`:
 
 ```
 /opsx:archive order-cancellation
 ```
 
-Claude:
-- проверит что артефакты завершены
-- предложит синхронизировать дельты из `changes/order-cancellation/specs/` в основной `openspec/specs/orders/spec.md` (соглашайся — это и есть продвижение спеки в истину)
-- перенесёт change в `openspec/changes/archive/YYYY-MM-DD-order-cancellation/`
+The AI will:
+- verify all artifacts are complete
+- propose syncing deltas from `changes/order-cancellation/specs/` into the canonical `openspec/specs/orders/spec.md` (accept — this is spec promotion)
+- move the change to `openspec/changes/archive/YYYY-MM-DD-order-cancellation/`
 
-С этого момента следующий `/analyst` будет читать `specs/orders/spec.md` уже с отменой заказа как baseline.
+From this point, the next `/analyst` reads `specs/orders/spec.md` with cancellation already in the baseline.
 
 ---
 
-## Сценарий 2: Мелкая правка или багфикс
+## Scenario 2: Small Fix or Bug
 
-Когда правка маленькая (баг, опечатка, обновление константы) — короткий путь:
+For small changes (bug, typo, constant update) — the short path:
 
 ```
 /opsx:propose fix-order-totals-rounding
-# Claude задаст пару вопросов и создаст артефакты
+# AI asks a couple of questions and creates artifacts
 
 /opsx:apply fix-order-totals-rounding
-# одна задача, реализуется автоматически
+# single task, implemented automatically
 
 /reviewer
-# обычно APPROVE с одной строкой issue
+# usually APPROVE with one minor issue
 
 /tester
-# одна-две test row из спеки
+# one or two test rows from the spec
 
 /opsx:archive fix-order-totals-rounding
 ```
 
-Это **5 команд** на багфикс. Минимум, который сохраняет контракт-дисциплину.
+That's **5 commands** for a bugfix — the minimum that preserves contract discipline.
 
-### Совсем без OpenSpec
+### Without OpenSpec entirely
 
-Допустимо только для:
-- опечаток в строковых литералах
-- обновлений констант, не меняющих поведение
-- стилей/форматирования без изменения логики
+Acceptable only for:
+- typos in string literals
+- constant updates that don't change behavior
+- style / formatting with no logic change
 
 ```
-/coder поправь округление в src/lib/api/orders.ts строка 234
+/coder fix rounding in src/lib/api/orders.ts line 234
 ```
 
-Coder в standalone mode пропустит чтение спек, сделает правку, прогонит Verify. **Без review/test/archive — на свой риск.** Любое функциональное изменение должно идти через OpenSpec.
+Coder in standalone mode skips spec reads, makes the change, runs Verify. **No review/test/archive — at your own risk.** Any functional change should go through OpenSpec.
 
 ---
 
-## Сценарий 3: Просто подумать
+## Scenario 3: Just Thinking
 
 ```
 /opsx:explore
 ```
 
-Описывай идею в свободной форме. Можно несколько итераций. Когда созреет — выходи к `/analyst` или сразу `/opsx:propose`.
+Describe your idea freely. Multiple iterations are fine. When it crystallizes — move to `/analyst` or go straight to `/opsx:propose`.
 
-В explore-режиме Claude **не пишет код**, но может создать OpenSpec артефакты (proposal, design, specs) если попросишь.
+In explore mode the AI **does not write code**, but can create OpenSpec artifacts (proposal, design, specs) if you ask.
 
 ---
 
-## Шпаргалка: когда что вызывать
+## Quick Reference
 
 ```
-Идея сырая             → /opsx:explore
-Идея ясна, нет change  → /analyst → /opsx:propose <name>
-Change есть, плохой план → /planner
-Change есть, готов писать код → /opsx:apply  ИЛИ  /coder
-После каждой задачи    → /reviewer → /tester
-Все [x] и PASS         → /opsx:archive
-REQUEST CHANGES        → /coder fix R-N
-FAIL                   → /coder fix bug N
+Idea is fuzzy              → /opsx:explore
+Idea is clear, no change   → /analyst → /opsx:propose <name>
+Change exists, bad plan    → /planner
+Change exists, ready to code → /opsx:apply  OR  /coder
+After each task            → /reviewer → /tester
+All [x] and PASS           → /opsx:archive
+REQUEST CHANGES            → /coder fix R-N
+FAIL                       → /coder fix bug N
 ```
 
-### Re-entry правила (важно)
+### Re-entry rules
 
-| Ситуация | Re-entry на | НЕ на |
-|----------|-------------|-------|
-| `REQUEST CHANGES` от reviewer | `/coder fix R-N` | analyst, planner |
-| `FAIL` от tester | `/coder fix bug N` | analyst, planner |
-| Требования оказались неверны | `/analyst` + правка `proposal.md` | coder |
-| Архитектура оказалась неверна | `/planner` + правка `design.md` | coder |
+| Situation | Re-enter at | NOT at |
+|-----------|-------------|--------|
+| `REQUEST CHANGES` from reviewer | `/coder fix R-N` | analyst, planner |
+| `FAIL` from tester | `/coder fix bug N` | analyst, planner |
+| Requirements turned out wrong | `/analyst` + edit `proposal.md` | coder |
+| Architecture turned out wrong | `/planner` + edit `design.md` | coder |
 
-Правило: feedback по коду = re-entry на coder. Feedback по требованиям/архитектуре = re-entry на соответствующую верхнюю роль с явной правкой артефакта.
-
----
-
-## Антипаттерны
-
-1. **Не вызывать `/coder` напрямую при активном change без `tasks.md`** — он не поймёт, какую задачу делать. Сначала `/opsx:propose`.
-2. **Не пропускать `/reviewer` между задачами** — это разрушает Decisions log и пропускает blocker'ы. Даже на простых задачах reviewer выдаёт APPROVE за 30 секунд.
-3. **Не запускать `/analyst` повторно после FAIL** — re-entry это `/coder`, не `/analyst`. Иначе перезапустишь весь пайплайн с нуля.
-4. **Не править `openspec/specs/` руками** — они продвигаются только через `/opsx:archive`. Если правишь руками — следующий `/analyst` прочтёт неконсистентное состояние.
-5. **Не игнорировать `Verify run` у coder** — он реально запускает `npm test`/`npm run build`. Если падает — значит задача не закрыта, не помечай `[x]` пока не пройдёт.
-6. **Не писать в `design.md` Decisions log руками** — туда пишут reviewer и coder по ходу работы. Ручные записи путают auto-generated формат и могут быть переписаны.
-7. **Не вызывать две роли одновременно** — у каждой роли есть negative trigger «Do not invoke if active OpenSpec change exists and a different role's artifact is the next expected output». Уважай его: вызывай только ту роль, чей артефакт следующий.
+Rule: feedback on code → re-enter at coder. Feedback on requirements/architecture → re-enter at the appropriate upstream role with an explicit artifact edit.
 
 ---
 
-## Первый прогон
+## Antipatterns
 
-Чтобы убедиться что вся связка работает на проекте — выбери реальную небольшую задачу из бэклога и пройди её через все 7 шагов сценария 1. Например:
-
-- «добавить поле `notes` в заказ»
-- «добавить фильтр по дате в список клиентов»
-- «добавить тип `EMERGENCY` в приоритеты заказа»
-
-Это занимает ~30 минут и закрывает все стыки: brownfield read, propose, scenarios, checkbox flip, Decisions log, archive. После прогона будет видно, где пайплайн жмёт лично у тебя и где надо подкрутить.
+1. **Don't call `/coder` directly with an active change but no `tasks.md`** — it won't know which task to do. Run `/opsx:propose` first.
+2. **Don't skip `/reviewer` between tasks** — this breaks the Decisions log and lets blockers through. Even on simple tasks, reviewer returns APPROVE in 30 seconds.
+3. **Don't re-run `/analyst` after FAIL** — re-entry is `/coder`, not `/analyst`. Going back to analyst restarts the entire pipeline from scratch.
+4. **Don't edit `openspec/specs/` by hand** — specs are promoted only via `/opsx:archive`. Manual edits leave the next `/analyst` reading inconsistent state.
+5. **Don't ignore the `Verify run` in coder** — it actually runs your test/build commands. If it fails, the task is not done; don't tick `[x]` until it passes.
+6. **Don't write to `design.md` Decisions log manually** — reviewer and coder write there as they work. Manual entries can confuse the format and get overwritten.
+7. **Don't invoke two roles at once** — each role has a negative trigger: "Do not invoke if an active OpenSpec change exists and a different role's artifact is the next expected output." Respect it: invoke only the role whose artifact is next.
 
 ---
 
-## Где живут какие решения
+## First Run
 
-| Тип решения | Файл |
-|-------------|------|
+To verify the full pipeline works in your project — pick a small real task from your backlog and walk it through all 7 steps of Scenario 1. Examples:
+
+- "add a `notes` field to the order"
+- "add a date filter to the client list"
+- "add an `EMERGENCY` type to order priorities"
+
+This takes ~30 minutes and exercises every joint: brownfield read, propose, scenarios, checkbox flip, Decisions log, archive. Afterwards you'll see exactly where the pipeline pinches for you.
+
+---
+
+## Where Decisions Live
+
+| Decision type | File |
+|--------------|------|
 | Per-change tradeoffs, invariants, constraints | `openspec/changes/<name>/design.md` → `## Decisions log` |
-| Project tech conventions (стек, структура, naming) | `openspec/config.yaml` |
-| Pipeline-meta правила (re-entry, hand-off, scope правил) | `.claude/skills/karpathy-guidelines/SKILL.md` |
-| Канонические сценарии capability | `openspec/specs/<capability>/spec.md` |
-| Что было сделано / прогресс по задачам | `openspec/changes/<name>/tasks.md` чекбоксы |
+| Project-wide tech conventions (stack, structure, naming) | `openspec/config.yaml` |
+| Pipeline-meta rules (re-entry, hand-off, rule scope) | `karpathy-guidelines/SKILL.md` |
+| Canonical capability scenarios | `openspec/specs/<capability>/spec.md` |
+| What was done / task progress | `openspec/changes/<name>/tasks.md` checkboxes |
 
-Других мест для решений нет. Если решение не помещается в одну из категорий — surface для обсуждения, не создавай новых файлов.
+No other location is canonical. If a decision doesn't fit one of the above — surface it for discussion, don't create new files.
