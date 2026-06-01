@@ -1,6 +1,6 @@
 # claude-skills
 
-Karpathy-derived role pipeline for Claude Code, integrated with OpenSpec workflow.
+Karpathy-derived role pipeline for AI coding tools, integrated with OpenSpec workflow.
 
 Roles: `analyst` · `planner` · `coder` · `reviewer` · `tester` · `karpathy-guidelines`
 
@@ -10,13 +10,22 @@ Roles: `analyst` · `planner` · `coder` · `reviewer` · `tester` · `karpathy-
 git submodule add https://github.com/YOUR_USERNAME/claude-skills .claude/pipeline
 ```
 
-Then add one line to your `CLAUDE.md`:
+Then add one line to each tool's instruction file:
 
+**Claude Code** — `CLAUDE.md`:
 ```
 @.claude/pipeline/CLAUDE-SKILLS.md
 ```
 
-That's it. All roles become available as `/analyst`, `/planner`, `/coder`, `/reviewer`, `/tester`.
+**Gemini CLI** — `GEMINI.md`:
+```
+@.claude/pipeline/GEMINI.md
+```
+
+**OpenAI Codex CLI** — `AGENTS.md`:
+```
+@.claude/pipeline/AGENTS.md
+```
 
 ## Update
 
